@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# set in prod
+REPO_DIR=""
+WORK_TREE=""
+
+echo "Post-receive: checking for deployable branches..."
+
+while read oldrev newrev refname; do
+  BRANCH=$(basename "$refname")
+  echo "Received update for branch: $BRANCH"
+
+  # deploy only if branch is main or master
+  if [ "$BRANCH" == "main" || "$BRANCH" == "master" ]; then
+    echo "Deploying $BRANCH branch..."
+
+    git --work-tree="$WORK_TREE" --git-dir="$REPO_DIR" checkout -f "newrev"
+
+    if [ -x "$WORK_TREE/cicd/deploy.sh" ]; then
+      cd "$WORK_TREE"
+      if ./cicd/deploy.sh; then
+        echo "Deploy ERROR"
+        exit 1
+      else
+        echo "Deployed successfully"
+      fi
+  else 
+    echo "Skipping deploy for branch: $BRANCH"
+  fi
+done
+
+
