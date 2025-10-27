@@ -1,44 +1,19 @@
 #!/bin/bash
-set -e 
+set -euo pipefail
 
-REPO_DIR=""
-TMP_DIR=${mktemp -d}
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)/.."
 
-echo "Running pre-receive checks..."
+while read oldrev newrev refname; do
+  echo "Received push to $refname..."
+  echo "New revision: $newrev"
 
-# read all branches
-while read oldrev newrev refname; do 
-  echo "Checking branch: $refname"
+  TEMP_DIR=$(mktemp -d)
+  trap 'rm -rf "$TEMP_DIR"' EXIT
 
-  # checkout new version to temp directory
-  git --work-tree="$TMP_DIR" --git-dir="$REPO_DIR" \
-    checkout -f "$newrev" >/dev/null 2>&1 
-  cd "$TMP_DIR"
+  git --git-dir="$REPO_DIR" archive "$newrev" | tar -x -C "$TEMP_DIR"
+  echo "Archive $newrev into $TEMP_DIR"
 
-  # check if build exists
-  if [ -x "./cicd/build.sh" ]; then
-    if ! ./cicd/build.sh; then
-      echo "Build failed for $refname"
-      rm -rf "$TMP_DIR"
-      exit 1
-    fi
-  fi
-
-    
-
-  # check if tests exists
-  if [ -x "./cicd/tests.sh" ]; then
-    echo "Testing..."
-    if ! ./cicd/tests.sh; then
-      echo "Tests failed for $refname"
-      rm -rf "$TMP_DIR"
-      exit 1
-    fi
-  fi
-
-  echo "CI succeeded for $refname"
+  cd "$TEMP_DIR"
+  ./cicd/test.sh
 done
-
-rm -rf "$TMP_DIR"
-exit 0
 
