@@ -43,7 +43,6 @@ The same scripts are used everywhere - no special CI environment.
 ```
 cicd/
 ├── test.sh
-├── build.sh
 ├── deploy.sh
 ```
 
